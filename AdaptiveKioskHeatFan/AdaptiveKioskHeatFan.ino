@@ -30,13 +30,13 @@
 
 */
 
-// include the library code:
+// LIBRARIES USED
 #include <LiquidCrystal.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 
-// relay pin
-int relay = 13;
 
-// lcd pins
+// LCD INIT
 /*
   LCD RS pin to digital pin 12
    LCD Enable pin to digital pin 11
@@ -56,8 +56,20 @@ int relay = 13;
 const int rs = 11, en = 10, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
+
+//TEMPERATURE SENSOR INIT
 //temp sensor pin - one wire
 const int tempSensor = 6;
+
+// Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+OneWire oneWire(tempSensor);
+
+// Pass our oneWire reference to Dallas Temperature.
+DallasTemperature sensors(&oneWire);
+
+// arrays to hold device address
+DeviceAddress insideThermometer;
+
 
 //start button pin
 const int buttonPin = 7;
@@ -87,6 +99,34 @@ void setup() {
   Serial.begin(9600);
   Serial.println("Starting Adaptive Kiosk Heatlamp and Fan");
 
+  // 1-wire temp startup - locate devices on the bus
+  Serial.print("Locating temp sensor...");
+  sensors.begin();
+  Serial.print("Found ");
+  Serial.print(sensors.getDeviceCount(), DEC);
+  Serial.println(" devices.");
+  if (!sensors.getAddress(insideThermometer, 0)) Serial.println("Unable to find temp sensor on Device 0");
+  Serial.print("Device 0 Address: ");
+  printAddress(insideThermometer);
+  Serial.println();
+
+
+  // set the resolution to 9 bit (Each Dallas/Maxim device is capable of several different resolutions)
+  sensors.setResolution(insideThermometer, 9);
+
+
+  Serial.print("Device 0 Resolution: ");
+  Serial.print(sensors.getResolution(insideThermometer), DEC);
+  Serial.println();
+
+
+
+  // set up the LCD's number of columns and rows:
+  lcd.begin(16, 2);
+  // Print a message to the LCD.
+  lcd.print("hello, world!");
+
+  //button ans relay pins
   pinMode(buttonPin, INPUT);
   pinMode(relayPin, OUTPUT); //the relay for now
 
@@ -94,6 +134,22 @@ void setup() {
   digitalWrite(relayPin, relayState);
 
 
+}
+
+
+// function to print the temperature for a device to LCD
+void printTemperatureToLCD(DeviceAddress deviceAddress)
+{
+  lcd.setCursor(0, 0);
+  float tempC = sensors.getTempC(deviceAddress);
+  lcd.print("Temp C: ");
+  lcd.print(tempC);
+
+  lcd.setCursor(0, 1);
+  lcd.print("Temp F: ");
+  lcd.println(DallasTemperature::toFahrenheit(tempC)); // Converts tempC to Fahrenheit
+  lcd.setCursor(13, 1);
+  lcd.print("   ");
 }
 
 void loop() {
@@ -143,12 +199,15 @@ void loop() {
       }
 
       //temp function
+      sensors.requestTemperatures(); // Send the command to get temperatures
+      printTemperatureToLCD(insideThermometer);
 
     }
 
-    //colling cycle - button pressed and lamp is now off, fans are on
+    //cooling cycle - button pressed and lamp is now off, fans are on
     //if button is pushed again while we are heating up, revert to lamp off and fan on
     if (relayState == LOW) {
+      inHeatingCycle = 0; // heating cycle complete
     }
 
 
@@ -160,4 +219,14 @@ void loop() {
   // save the reading. Next time through the loop, it'll be the lastButtonState:
   lastButtonState = reading;
 
+}
+
+// function to print a device address
+void printAddress(DeviceAddress deviceAddress)
+{
+  for (uint8_t i = 0; i < 8; i++)
+  {
+    if (deviceAddress[i] < 16) Serial.print("0");
+    Serial.print(deviceAddress[i], HEX);
+  }
 }
