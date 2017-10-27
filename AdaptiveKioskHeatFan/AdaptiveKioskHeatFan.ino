@@ -1,30 +1,30 @@
 /*
-Setup
-Temp sensor T on pin 6
-Buttton B on pin 7
-Relay R on Pin 12
-lcd on pin 3,4,5,6,10,11
-Timer
-TimerMax = 2 min
+  Setup
+  Temp sensor T on pin 6
+  Buttton B on pin 7
+  Relay R on Pin 12
+  lcd on pin 3,4,5,6,10,11
+  Timer
+  TimerMax = 2 min
 
-Init button, relay and sensor vars 
-Button and relay should be Low
-Relay off / low means fan on and light off
+  Init button, relay and sensor vars
+  Button and relay should be Low
+  Relay off / low means fan on and light off
 
 
-Run loop
+  Run loop
 
-Read temp
-Write temp to lcd
-If B == high, //start button pressed
+  Read temp
+  Write temp to lcd
+  If B == high, //start button pressed
   Set runningLoop = true
   Start timer
   Set relay to high //light on fan off
 
-If runningLoop == true
+  If runningLoop == true
   While Timer<TimerMax
    Sleep
-Else
+  Else
   Set runningLoop false
   Set relay to low /light off fan on
 
@@ -34,22 +34,22 @@ Else
 #include <LiquidCrystal.h>
 
 // relay pin
-int relay = 13;         
+int relay = 13;
 
 // lcd pins
 /*
-* LCD RS pin to digital pin 12
- * LCD Enable pin to digital pin 11
- * LCD D4 pin to digital pin 5
- * LCD D5 pin to digital pin 4
- * LCD D6 pin to digital pin 3
- * LCD D7 pin to digital pin 2
- * LCD R/W pin to ground
- * LCD VSS pin to ground
- * LCD VCC pin to 5V
- * 10K resistor:
- * ends to +5V and ground
- * wiper to LCD VO pin (pin 3)
+  LCD RS pin to digital pin 12
+   LCD Enable pin to digital pin 11
+   LCD D4 pin to digital pin 5
+   LCD D5 pin to digital pin 4
+   LCD D6 pin to digital pin 3
+   LCD D7 pin to digital pin 2
+   LCD R/W pin to ground
+   LCD VSS pin to ground
+   LCD VCC pin to 5V
+   10K resistor:
+   ends to +5V and ground
+   wiper to LCD VO pin (pin 3)
 */
 // initialize the library by associating any needed LCD interface pin
 // with the arduino pin number it is connected to
@@ -76,22 +76,28 @@ int lastButtonState = LOW;   // the previous reading from the input pin
 unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
 unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
 
+
+//heating cycle vars
+unsigned long maxHeatTimeMS = 1000 * 20; //20 seconds
+int inHeatingCycle = 0;
+unsigned long lastTimerStartTime = 0;  // the last time the timer was started
+
 void setup() {
-// start serial port
+  // start serial port
   Serial.begin(9600);
   Serial.println("Starting Adaptive Kiosk Heatlamp and Fan");
-    
+
   pinMode(buttonPin, INPUT);
   pinMode(relayPin, OUTPUT); //the relay for now
 
   // set initial relay state
   digitalWrite(relayPin, relayState);
-  
+
 
 }
 
 void loop() {
-// read the state of the switch into a local variable:
+  // read the state of the switch into a local variable:
   int reading = digitalRead(buttonPin);
 
   // check to see if you just pressed the button
@@ -118,21 +124,34 @@ void loop() {
         relayState = !relayState;
         Serial.println(relayState);
       }
-
-      //button pressed and lamp is now on, fans are off
-      //start timer or start temp, turn off relay once timer or max temp is reached
-      if (relayState == HIGH) {
-        //timer function
-
-        //temp function
-      }
-
-      //button pressed and lamp is now off, fans are on
-      //if button is pushed again while we are heating up, revert to lamp off and fan on 
-      if (relayState == LOW) {
-      }
-      
     }
+
+    //heating cycle - button pressed and lamp is now on, fans are off
+    //start timer or start temp, turn off relay once timer or max temp is reached
+    if (relayState == HIGH) {
+      //timer function
+      if (inHeatingCycle == 0) {
+        inHeatingCycle = 1; //now in heating cycle
+        lastTimerStartTime = millis();
+      }
+      // if timer reached limit, turn off lamp and reset
+      if ((millis() - lastTimerStartTime) > maxHeatTimeMS) {
+        relayState = !relayState;
+        Serial.println("Heating cycle complete");
+        inHeatingCycle = 0; // heating cycle complete
+        //lastTimerStartTime = 0;
+      }
+
+      //temp function
+
+    }
+
+    //colling cycle - button pressed and lamp is now off, fans are on
+    //if button is pushed again while we are heating up, revert to lamp off and fan on
+    if (relayState == LOW) {
+    }
+
+
   }
 
   // set the relay:
