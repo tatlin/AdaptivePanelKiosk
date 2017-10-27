@@ -1,9 +1,9 @@
 /*
 Setup
-Temp sensor T on pin 1
-Buttton B on pin 2
-Relay R on Pin 3
-lcd on pin 4
+Temp sensor T on pin 6
+Buttton B on pin 7
+Relay R on Pin 12
+lcd on pin 3,4,5,6,10,11
 Timer
 TimerMax = 2 min
 
@@ -118,6 +118,20 @@ void loop() {
         relayState = !relayState;
         Serial.println(relayState);
       }
+
+      //button pressed and lamp is now on, fans are off
+      //start timer or start temp, turn off relay once timer or max temp is reached
+      if (relayState == HIGH) {
+        //timer function
+
+        //temp function
+      }
+
+      //button pressed and lamp is now off, fans are on
+      //if button is pushed again while we are heating up, revert to lamp off and fan on 
+      if (relayState == LOW) {
+      }
+      
     }
   }
 
