@@ -68,7 +68,7 @@ OneWire oneWire(tempSensor);
 DallasTemperature sensors(&oneWire);
 
 // arrays to hold device address
-DeviceAddress insideThermometer;
+DeviceAddress kioskThermometer;
 
 
 //start button pin
@@ -79,17 +79,20 @@ const int relayPin = 12;
 
 
 // Variables will change:
-int relayState = HIGH;         // the current state of the output pin
+int relayState = LOW;         // the current state of the output pin
 int buttonState;             // the current reading from the input pin
 int lastButtonState = LOW;   // the previous reading from the input pin
 
-// the following variables are unsigned longs because the time, measured in
-// milliseconds, will quickly become a bigger number than can be stored in an int.
+//temperature variables
+float TempC;
+float TempF;
+
+//debounce variables
 unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
 unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
 
 
-//heating cycle vars
+//heating cycle state variables
 unsigned long maxHeatTimeMS = 1000 * 20; //20 seconds
 int inHeatingCycle = 0;
 unsigned long lastTimerStartTime = 0;  // the last time the timer was started
@@ -105,18 +108,18 @@ void setup() {
   Serial.print("Found ");
   Serial.print(sensors.getDeviceCount(), DEC);
   Serial.println(" devices.");
-  if (!sensors.getAddress(insideThermometer, 0)) Serial.println("Unable to find temp sensor on Device 0");
+  if (!sensors.getAddress(kioskThermometer, 0)) Serial.println("Unable to find temp sensor on Device 0");
   Serial.print("Device 0 Address: ");
-  printAddress(insideThermometer);
-  Serial.println();
+  printAddress(kioskThermometer);
+  Serial.println("Ready Player One. Press button to start sequence.");
 
 
   // set the resolution to 9 bit (Each Dallas/Maxim device is capable of several different resolutions)
-  sensors.setResolution(insideThermometer, 9);
+  sensors.setResolution(kioskThermometer, 2);
 
 
   Serial.print("Device 0 Resolution: ");
-  Serial.print(sensors.getResolution(insideThermometer), DEC);
+  Serial.print(sensors.getResolution(kioskThermometer), DEC);
   Serial.println();
 
 
@@ -136,6 +139,25 @@ void setup() {
 
 }
 
+void getTemperature(DeviceAddress deviceAddress)
+{
+
+  float tempC = sensors.getTempC(deviceAddress);
+  Serial.print("Temp C: ");
+  Serial.print(tempC);
+  Serial.print(" Temp F: ");
+  Serial.println(DallasTemperature::toFahrenheit(tempC)); // Converts tempC to Fahrenheit
+}
+
+void printTemperature(DeviceAddress deviceAddress)
+{
+
+  float tempC = sensors.getTempC(deviceAddress);
+  Serial.print("Temp C: ");
+  Serial.print(tempC);
+  Serial.print(" Temp F: ");
+  Serial.println(DallasTemperature::toFahrenheit(tempC)); // Converts tempC to Fahrenheit
+}
 
 // function to print the temperature for a device to LCD
 void printTemperatureToLCD(DeviceAddress deviceAddress)
@@ -155,6 +177,9 @@ void printTemperatureToLCD(DeviceAddress deviceAddress)
 void loop() {
   // read the state of the switch into a local variable:
   int reading = digitalRead(buttonPin);
+  //String readingStr = "Reading: " + reading;
+  //Serial.println(reading);
+
 
   // check to see if you just pressed the button
   // (i.e. the input went from LOW to HIGH), and you've waited long enough
@@ -173,12 +198,12 @@ void loop() {
     // if the button state has changed:
     if (reading != buttonState) {
       buttonState = reading;
-      Serial.println(buttonState);
+      Serial.println("buttonState: " + buttonState);
 
       // only toggle the lamp/fan on the relay if the new button state is HIGH
       if (buttonState == HIGH) {
         relayState = !relayState;
-        Serial.println(relayState);
+        Serial.println(relayState);//"relayState changed: " + 
       }
     }
 
@@ -188,26 +213,33 @@ void loop() {
       //timer function
       if (inHeatingCycle == 0) {
         inHeatingCycle = 1; //now in heating cycle
+        Serial.println("Heating cycle started");
         lastTimerStartTime = millis();
       }
       // if timer reached limit, turn off lamp and reset
-      if ((millis() - lastTimerStartTime) > maxHeatTimeMS) {
+      int elapsedTime = millis() - lastTimerStartTime;
+      
+      if ((elapsedTime) > maxHeatTimeMS) {
         relayState = !relayState;
         Serial.println("Heating cycle complete");
+        Serial.println(relayState);
         inHeatingCycle = 0; // heating cycle complete
-        //lastTimerStartTime = 0;
+        
+      } else { //still in loop 
+        Serial.println(elapsedTime);
       }
 
       //temp function
       sensors.requestTemperatures(); // Send the command to get temperatures
-      printTemperatureToLCD(insideThermometer);
+      printTemperature(kioskThermometer);
 
     }
 
     //cooling cycle - button pressed and lamp is now off, fans are on
     //if button is pushed again while we are heating up, revert to lamp off and fan on
-    if (relayState == LOW) {
-      inHeatingCycle = 0; // heating cycle complete
+    if (inHeatingCycle == 1 && relayState == LOW) {
+      inHeatingCycle = 0; // heating cycle cancelled
+      Serial.println("Heating cycle cancelled");
     }
 
 
