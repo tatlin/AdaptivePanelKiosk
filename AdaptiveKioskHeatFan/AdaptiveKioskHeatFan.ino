@@ -89,11 +89,11 @@ float TempF;
 
 //debounce variables
 unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
-unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
+unsigned long debounceDelay = 10;    // the debounce time; increase if the output flickers
 
 
 //heating cycle state variables
-unsigned long maxHeatTimeMS = 1000 * 20; //20 seconds
+unsigned long maxHeatTimeMS = 1000 * 2; //2 seconds
 int inHeatingCycle = 0;
 unsigned long lastTimerStartTime = 0;  // the last time the timer was started
 
@@ -127,7 +127,7 @@ void setup() {
   // set up the LCD's number of columns and rows:
   lcd.begin(16, 2);
   // Print a message to the LCD.
-  lcd.print("hello, world!");
+  lcd.print("Ready Player One.");
 
   //button ans relay pins
   pinMode(buttonPin, INPUT);
@@ -141,22 +141,22 @@ void setup() {
 
 void getTemperature(DeviceAddress deviceAddress)
 {
-
-  float tempC = sensors.getTempC(deviceAddress);
-  Serial.print("Temp C: ");
-  Serial.print(tempC);
-  Serial.print(" Temp F: ");
-  Serial.println(DallasTemperature::toFahrenheit(tempC)); // Converts tempC to Fahrenheit
+  //global var TempC
+  TempC = sensors.getTempC(deviceAddress);
+  
+  //global var TempF
+  TempF = DallasTemperature::toFahrenheit(TempC); // Converts tempC to Fahrenheit
 }
 
 void printTemperature(DeviceAddress deviceAddress)
 {
 
-  float tempC = sensors.getTempC(deviceAddress);
+  //float tempC = sensors.getTempC(deviceAddress);
+  getTemperature(deviceAddress);
   Serial.print("Temp C: ");
-  Serial.print(tempC);
+  Serial.print(TempC); //tempC);
   Serial.print(" Temp F: ");
-  Serial.println(DallasTemperature::toFahrenheit(tempC)); // Converts tempC to Fahrenheit
+  Serial.println(TempF); 
 }
 
 // function to print the temperature for a device to LCD
@@ -165,11 +165,13 @@ void printTemperatureToLCD(DeviceAddress deviceAddress)
   lcd.setCursor(0, 0);
   float tempC = sensors.getTempC(deviceAddress);
   lcd.print("Temp C: ");
-  lcd.print(tempC);
+  lcd.print(TempC);
+  lcd.setCursor(13, 0);
+  lcd.print("   ");
 
   lcd.setCursor(0, 1);
   lcd.print("Temp F: ");
-  lcd.println(DallasTemperature::toFahrenheit(tempC)); // Converts tempC to Fahrenheit
+  lcd.println(TempF);//DallasTemperature::toFahrenheit(TempC)); // Converts tempC to Fahrenheit
   lcd.setCursor(13, 1);
   lcd.print("   ");
 }
@@ -203,7 +205,6 @@ void loop() {
       // only toggle the lamp/fan on the relay if the new button state is HIGH
       if (buttonState == HIGH) {
         relayState = !relayState;
-        Serial.println(relayState);//"relayState changed: " + 
       }
     }
 
@@ -213,6 +214,8 @@ void loop() {
       //timer function
       if (inHeatingCycle == 0) {
         inHeatingCycle = 1; //now in heating cycle
+        //digitalWrite(relayPin, relayState);
+        Serial.println(relayState);//"relayState changed: " + 
         Serial.println("Heating cycle started");
         lastTimerStartTime = millis();
       }
@@ -221,6 +224,7 @@ void loop() {
       
       if ((elapsedTime) > maxHeatTimeMS) {
         relayState = !relayState;
+        //digitalWrite(relayPin, relayState);
         Serial.println("Heating cycle complete");
         Serial.println(relayState);
         inHeatingCycle = 0; // heating cycle complete
@@ -232,6 +236,7 @@ void loop() {
       //temp function
       sensors.requestTemperatures(); // Send the command to get temperatures
       printTemperature(kioskThermometer);
+      printTemperatureToLCD(kioskThermometer);
 
     }
 
